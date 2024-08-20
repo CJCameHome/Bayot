@@ -8,6 +8,7 @@ let configJson;
 let packageJson;
 const sign = "(›^-^)›";
 const fbstate = "appstate.json";
+const keep_alive = require('./keep_alive.js')
 
 try {
   configJson = require("./config.json");
