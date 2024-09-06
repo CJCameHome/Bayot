@@ -9,6 +9,8 @@ module.exports.config = {
 	hasPermission: 0,
 	credits: "Jonell Magallanes and Nethanel Debulgado modified by CJ",
 	description: "Search and save rule34 image with title",
+    usePrefix: true,
+    allowPrefix: true,
 	commandCategory: "nsfw",
 	cooldowns: 10
 };
