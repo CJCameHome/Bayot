@@ -1,5 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
+const FormData = require('form-data');
 
 module.exports.config = {
     name: "post",
@@ -55,7 +56,7 @@ module.exports.run = async ({ api, event, args }) => {
                 formData.append('access_token', accessToken);
 
                 const uploadResponse = await axios.post(`https://graph.facebook.com/${pageId}/photos`, formData, {
-                    headers: formData.getHeaders()
+                    headers: formData.getHeaders() // Correctly pass form headers here
                 });
 
                 api.sendMessage("📸 | Photo posted to Facebook!", event.threadID, event.messageID);
@@ -94,7 +95,7 @@ module.exports.run = async ({ api, event, args }) => {
                 formData.append('access_token', accessToken);
 
                 const uploadResponse = await axios.post(`https://graph.facebook.com/${pageId}/videos`, formData, {
-                    headers: formData.getHeaders()
+                    headers: formData.getHeaders() // Correctly pass form headers here
                 });
 
                 api.sendMessage("🎥 | Video posted to Facebook!", event.threadID, event.messageID);
