@@ -4,74 +4,39 @@ const request = require('request');
 const xml2js = require('xml2js');
 
 module.exports.config = {
-    name: "rule34",
-    version: "1.0.0",
-    hasPermission: 0,
-    credits: "Jonell Magallanes and Nethanel Debulgado modded by CJ",
-    description: "Search and save rule34 image with title",
+	name: "rule34",
+	version: "1.0.0",
+	hasPermission: 0,
+	credits: "Jonell Magallanes and Nethanel Debulgado",
     usePrefix: true,
     allowPrefix: true,
-    commandCategory: "nsfw",
-    cooldowns: 10
+	description: "Search and save rule34 image with title",
+	commandCategory: "nsfw",
+	cooldowns: 10
 };
 
 module.exports.run = async ({ api, event, args }) => {
-    api.sendMessage("📪 | Sending Please Wait...", event.threadID, event.messageID);
-    const searchTitle = args.join(" ");
+ api.sendMessage("📪 | Sending Please Wait...", event.threadID, event.messageID);
+  const searchTitle = args.join(" ");
     const parser = new xml2js.Parser();
-    const imgPaths = [];
 
     try {
         const response = await axios.get(`https://rule34.xxx/index.php?page=dapi&s=post&q=index&tags=${encodeURI(searchTitle)}`);
-        const result = await parser.parseStringPromise(response.data);
-        const posts = result.posts.post;
-
-        if (!posts || posts.length === 0) {
-            api.sendMessage("No images found for your search.", event.threadID, event.messageID);
-            return;
-        }
-
-        const downloadPromises = posts.map((post, index) => {
-            return new Promise((resolve, reject) => {
+        parser.parseStringPromise(response.data).then((result) => {
+            const posts = result.posts.post;
+            posts.forEach((post, index) => {
                 const imgUrl = post.$.file_url;
                 const imgPath = __dirname + `/cache/rule34_${index}.jpg`;
-                request(imgUrl)
-                    .pipe(fs.createWriteStream(imgPath))
-                    .on("close", () => {
-                        imgPaths.push(imgPath);
-                        resolve();
-                    })
-                    .on("error", (err) => {
-                        console.error(`Error downloading image ${imgUrl}:`, err);
-                        reject(err);
-                    });
+                request(imgUrl).pipe(fs.createWriteStream(imgPath)).on("close", () => {
+                    api.sendMessage({ body: `Image ${index+1}: ${searchTitle}`,
+                        attachment: fs.createReadStream(imgPath)},
+                        event.threadID, () => fs.unlinkSync(imgPath), event.messageID);
+                });
             });
         });
-
-        // Wait for all images to be downloaded
-        await Promise.all(downloadPromises);
-
-        // Send images
-        if (imgPaths.length > 0) {
-            const attachments = imgPaths.map((path) => fs.createReadStream(path));
-            api.sendMessage(
-                {
-                    body: `Search results for: ${searchTitle}`,
-                    attachment: attachments
-                },
-                event.threadID,
-                () => {
-                    imgPaths.forEach((path) => fs.unlinkSync(path)); // Delete files after sending
-                },
-                event.messageID
-            );
-        } else {
-            api.sendMessage("No images could be downloaded.", event.threadID, event.messageID);
-        }
-
     } catch (err) {
-        console.error('API error or parsing error:', err);
-        api.sendMessage("API error or parsing error, please try again later.", event.threadID, event.messageID);
+        api.sendMessage("API error, please try again later", event.threadID, event.messageID);
         api.setMessageReaction("❌", event.messageID, (err) => {}, true);
     }
+
 };
