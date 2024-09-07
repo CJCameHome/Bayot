@@ -1,5 +1,4 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 const fs = require('fs');
 
 module.exports.config = {
@@ -7,7 +6,7 @@ module.exports.config = {
     version: "1.0.0",
     hasPermission: 0,
     credits: "CJ",
-    description: "Search and save videos from hanime(.)tv",
+    description: "Search and save videos from hanime.tv",
     usePrefix: true,
     commandCategory: "nsfw",
     cooldowns: 10
@@ -19,28 +18,37 @@ module.exports.run = async ({ api, event, args }) => {
     api.sendMessage(`🔍 | Searching for "${searchQuery}"...`, event.threadID, event.messageID);
 
     try {
-        // Fetch the search page HTML
-        const response = await axios.get(url);
-        const html = response.data;
+        // Launch Puppeteer browser
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
 
-        // Parse the HTML using cheerio
-        const $ = cheerio.load(html);
+        // Navigate to the search URL
+        await page.goto(url, { waitUntil: 'networkidle2' });
 
-        // Find and extract the first search result video link
-        const videoLinks = [];
-        $('.video-card').each((i, element) => {
-            const title = $(element).find('.video-card-title').text().trim();
-            const link = $(element).find('a').attr('href');
-            const thumbnail = $(element).find('img').attr('data-src');
-            if (link) {
-                videoLinks.push({
-                    title: title,
-                    link: `https://hanime.tv${link}`,
-                    thumbnail: thumbnail
-                });
-            }
+        // Wait for the search results to load
+        await page.waitForSelector('.video-card');  // Adjust selector if necessary
+
+        // Extract search results
+        const videoLinks = await page.evaluate(() => {
+            const videos = [];
+            document.querySelectorAll('.video-card').forEach((element) => {
+                const title = element.querySelector('.video-card-title')?.innerText.trim();
+                const link = element.querySelector('a')?.href;
+                const thumbnail = element.querySelector('img')?.getAttribute('data-src');
+                if (title && link) {
+                    videos.push({
+                        title: title,
+                        link: link,
+                        thumbnail: thumbnail
+                    });
+                }
+            });
+            return videos;
         });
 
+        await browser.close();
+
+        // Handle case when no results are found
         if (videoLinks.length === 0) {
             return api.sendMessage("❌ | No results found.", event.threadID, event.messageID);
         }
