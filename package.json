@@ -54,6 +54,7 @@
     "npmlog": "^7.0.1",
     "pastebin-api": "^7.0.0",
     "path": "^0.12.7",
+    "puppeteer": "^23.3.0",
     "request": "^2.88.2",
     "semver": "^7.6.3",
     "simple-youtube-api": "^5.2.1",
