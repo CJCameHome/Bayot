@@ -1,12 +1,13 @@
-const puppeteer = require('puppeteer');
+const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
 
 module.exports.config = {
     name: "hanime",
     version: "1.0.0",
     hasPermission: 0,
     credits: "CJ",
-    description: "Search and save videos from hanime.tv",
+    description: "Search and save videos from Hanime.tv",
     usePrefix: true,
     commandCategory: "nsfw",
     cooldowns: 10
@@ -14,55 +15,43 @@ module.exports.config = {
 
 module.exports.run = async ({ api, event, args }) => {
     const searchQuery = args.join(" ");
-    const url = `https://hanime.tv/search?search=${encodeURI(searchQuery)}`;
+    
+    if (!searchQuery) {
+        return api.sendMessage("❌ | Please provide a search query!", event.threadID, event.messageID);
+    }
+    
     api.sendMessage(`🔍 | Searching for "${searchQuery}"...`, event.threadID, event.messageID);
 
     try {
-        // Launch Puppeteer browser
-        const browser = await puppeteer.launch();
-        const page = await browser.newPage();
+        // Use the Replit API URL here (replace with your Replit URL)
+        const apiUrl = `https://your-hanime-api-project.repl.co/api/v1/video?search=${encodeURIComponent(searchQuery)}`;
+        const response = await axios.get(apiUrl);
+        
+        const videos = response.data.hits || [];
 
-        // Navigate to the search URL
-        await page.goto(url, { waitUntil: 'networkidle2' });
-
-        // Wait for the search results to load
-        await page.waitForSelector('.video-card');  // Adjust selector if necessary
-
-        // Extract search results
-        const videoLinks = await page.evaluate(() => {
-            const videos = [];
-            document.querySelectorAll('.video-card').forEach((element) => {
-                const title = element.querySelector('.video-card-title')?.innerText.trim();
-                const link = element.querySelector('a')?.href;
-                const thumbnail = element.querySelector('img')?.getAttribute('data-src');
-                if (title && link) {
-                    videos.push({
-                        title: title,
-                        link: link,
-                        thumbnail: thumbnail
-                    });
-                }
-            });
-            return videos;
-        });
-
-        await browser.close();
-
-        // Handle case when no results are found
-        if (videoLinks.length === 0) {
+        if (videos.length === 0) {
             return api.sendMessage("❌ | No results found.", event.threadID, event.messageID);
         }
 
-        // Save results to a file (optional)
-        fs.writeFileSync(`${__dirname}/cache/hanime_results.json`, JSON.stringify(videoLinks, null, 2));
+        // Prepare the first video result
+        const firstVideo = videos[0];
+        const videoTitle = firstVideo.name;
+        const videoThumbnail = firstVideo.poster_url;
+        const videoLink = firstVideo.hentai_video_id ? `https://hanime.tv/videos/hentai/${firstVideo.hentai_video_id}` : '';
 
-        // Send the first result to the chat
-        const firstResult = videoLinks[0];
-        api.sendMessage(
-            `🔞 | Title: ${firstResult.title}\n🌐 | Link: ${firstResult.link}`,
-            event.threadID,
-            event.messageID
-        );
+        // Download the video thumbnail image
+        const imgPath = path.join(__dirname, `/cache/hanime_thumbnail.jpg`);
+        const imgResponse = await axios({
+            url: videoThumbnail,
+            responseType: 'stream',
+        });
+        imgResponse.data.pipe(fs.createWriteStream(imgPath)).on('close', () => {
+            // Send the video details along with the thumbnail
+            api.sendMessage({
+                body: `🔞 | Title: ${videoTitle}\n🌐 | Link: ${videoLink}`,
+                attachment: fs.createReadStream(imgPath),
+            }, event.threadID, event.messageID, () => fs.unlinkSync(imgPath));
+        });
 
     } catch (error) {
         console.error("Error during the search:", error.message);
