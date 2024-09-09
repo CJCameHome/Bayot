@@ -22,7 +22,9 @@
   "commandDisabled": [
     "pornhub.js",
     "phubunban.js",
-    "video.js"
+    "video.js",
+    "rule34.js",
+    "hanime.js"
   ],
   "eventDisabled": [],
   "BOTNAME": "TITE",
